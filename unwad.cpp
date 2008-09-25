@@ -39,10 +39,43 @@ class Zip // wraps some bastardized code from zlib/contrib (aka minizip)
   
 private:
   
-static std::map<std::string, bool> seenFiles;
+  static std::map<std::string, bool> seenFiles;
+  
+  static std::string fixPath(std::string path)
+  {
+#ifdef MSW
+    for (unsigned i = 0; i<path.length(); i++)
+    {
+      if (path[i] == '/') path[i] = '\\';
+    }
+    // printf("\n newpath: %s\n", path.c_str());
+#endif
+    return path;
+  }
   
 public:
   
+
+  static bool packFiles(std::vector<std::string> files, std::string zippath, unsigned stripChars=0)
+  {
+    std::stringstream strip("");
+    strip << ">" << stripChars;
+    files.insert(files.begin(),fixPath(zippath));
+    files.insert(files.begin(),strip.str());
+    files.insert(files.begin(),"-o");
+    files.insert(files.begin(),"minizip");
+    
+    unsigned argc = files.size();
+    
+    const char *args[argc];
+    
+    for (unsigned i = 0; i < argc; i++) args[i] = files[i].c_str();
+    
+    bool result = !mz_main(argc, (char **)args);
+    return result;
+  };
+
+   // this works fine on linux, but guess what...
   static bool packFile(std::string filepath, std::string zippath, unsigned stripChars=0, bool overwrite=false)
   {
     std::stringstream strip("");
@@ -50,7 +83,7 @@ public:
     const char *ow = (overwrite || seenFiles.find(zippath) == seenFiles.end() ? "-o" : "-a");
     const char *args[] =
     {
-      "minizip",ow,"-6", strip.str().c_str(), zippath.c_str(), filepath.c_str()
+      "minizip",ow,"-6", strip.str().c_str(), fixPath(zippath).c_str(), filepath.c_str()
     };
     int argcount = sizeof(args) / sizeof(char *);
     seenFiles[zippath] = true;
@@ -961,7 +994,6 @@ unsigned long PatchToPng::crc_table[256];
     DOOM SOUND EXPORT
 *****************************/
 
-
 class DoomSndExport
 {
 public:
@@ -1190,11 +1222,13 @@ public:
     Zip::packFile(path, pk3path, strip, overwrite);
   }
   
+  
   void loadFile(std::string path, Options *options )
  {
    
     std::string outpath = (options->outPath.length() > 0 ? options->outPath + "/" : path + ".files/");
     std::string pk3path = (options->outPath.length() > 0 ? options->outPath + ".pk3" : path + ".pk3");
+    std::vector<std::string> filesToPack;
    
     printf("Saving files in %s \n", outpath.c_str());
     
@@ -1301,7 +1335,8 @@ public:
           mapLumpDir.clear();
           if(options->pk3)
           {
-            packFile(outpath + "maps/" + lastMarkerName + ".wad", pk3path, outpath.length());
+            // packFile(outpath + "maps/" + lastMarkerName + ".wad", pk3path, outpath.length());
+            filesToPack.push_back(outpath + "maps/" + lastMarkerName + ".wad");
           }
         }
         
@@ -1346,7 +1381,8 @@ public:
         lumps[i].write(outfile);
         if(options->pk3)
         {
-          packFile(outfile, pk3path, outpath.length());
+          // packFile(outfile, pk3path, outpath.length());
+          filesToPack.push_back(outfile);
         }
         goto done;
       }
@@ -1487,7 +1523,11 @@ public:
 
       done:;  //  done with this lump. Free resources, print stuff and process the next lump.
       
-      if(options->pk3 && outfile != "" && outfile != lastoutfile) packFile(outfile, pk3path, outpath.length());
+      if(options->pk3 && outfile != "" && outfile != lastoutfile)
+      {
+        // packFile(outfile, pk3path, outpath.length());
+        filesToPack.push_back(outfile);
+      }
       lastoutfile = outfile;
       
       
@@ -1511,7 +1551,13 @@ public:
     } // end of lump loop
    
     wadfile.close();
-
+    
+    if(options->pk3)
+    {
+      // for(unsigned i = 0; i < filesToPack.size(); i++) printf("to pack: %s \n", filesToPack[i].c_str());
+      Zip::packFiles(filesToPack, pk3path, outpath.length());
+    }
+    
     printf("Wad type: %s; lumps:%i; dir offset:%i \n\n",head.getMagic().c_str(),
         (int)head.lumpCount, (int)head.directoryOffset);
 

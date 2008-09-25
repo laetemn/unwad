@@ -377,7 +377,7 @@ int mz_main(int argc, char *argv[])
                     if (fin==NULL)
                     {
                         err=ZIP_ERRNO;
-                        printf("error in opening %s for reading\n",filenamein);
+                        printf("error in opening %s for reading...\n",filenamein);
                     }
                 }
 
