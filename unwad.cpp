@@ -1554,7 +1554,9 @@ public:
     
     if(options->pk3)
     {
-      // for(unsigned i = 0; i < filesToPack.size(); i++) printf("to pack: %s \n", filesToPack[i].c_str());
+      printf("\nAdding files to %s: \n", pk3path.c_str());
+      for(unsigned i = 0; i < filesToPack.size(); i++) printf("to pack: %s \n", filesToPack[i].c_str());
+      printf("\nCreating pk3... \n");
       Zip::packFiles(filesToPack, pk3path, outpath.length());
     }
     
@@ -1571,6 +1573,12 @@ public:
                 MAIN
 *****************************/
 
+void showHelp()
+{
+  #include "readme.txt.h"
+  printf("\n%s\n", readme_txt);
+}
+
 int main(int argc,char **argv) 
 {
   
@@ -1581,7 +1589,12 @@ int main(int argc,char **argv)
       std::vector<std::string> files;
       for (int i=1; i<argc; i++) 
       {
-        if (std::string("-l") == argv[i])  // only list lumps, don't extract
+        if (std::string("-?") == argv[i])
+        {
+          showHelp();
+          return 0;
+        }
+        else if (std::string("-l") == argv[i])  // only list lumps, don't extract
           options.list = true;
         else if (std::string("-u") == argv[i])  // upper-case lump names
           options.upper = true;
