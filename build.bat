@@ -1,0 +1,1 @@
+g++ -Wall -DMSW=1 unwad.cpp qmus2mid.cpp -I./include -I./include/pngpp -Ldll -lmagic1 -lzlib1 -lregex2 -llibpng13  -o unwad.exe
