@@ -1,13 +1,11 @@
 
 # mingw32 cross-compile
 
-echo building minizip
+echo cross-compiling unwad.exe for windows
 
 cd include/minizip
 ./cross-compile.sh
 cd ../..
-
-echo building unwad
 
 i586-mingw32msvc-g++ -Wall  \
 -DMSW=1 \

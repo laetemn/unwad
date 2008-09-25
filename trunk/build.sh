@@ -1,22 +1,6 @@
 
-# normal build
+# build linux and windows
 
-echo building minizip
+./build-linux.sh
 
-cd include/minizip
-./build.sh
-cd ../..
-
-echo building unwad
-
-g++ -Wall \
--I./include/pngpp -I./include \
-unwad.cpp qmus2mid.cpp \
-include/minizip/minizip.o include/minizip/ioapi.o include/minizip/zip.o include/minizip/unzip.o \
--lmagic -lpng -lz \
--o unwad
-
-strip unwad
-
-cd include/minizip
-rm *.o
+./cross-compile.sh
