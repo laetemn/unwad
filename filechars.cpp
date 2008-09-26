@@ -2,12 +2,12 @@
 
 #include <vector>
 #include <string>
-#include <fstream>
 #include <sstream>
+#include <fstream>
 
 using namespace std;
 
-// escape control chars and wrap with quotes
+// escape special chars and add line breaks
 string prepareLine(string instr)
 {
   stringstream ss("");
@@ -32,7 +32,6 @@ string cleanFileName(char *fn)
   return ss.str();
 }
 
-// write string declaration given a variable name
 string header(string varname)
 {
   return "const char *" + varname + " = \"\\\n";
@@ -68,8 +67,8 @@ int main(int argc,char **argv)
   }
   catch (exception const &error)
   {
-      printf("%s: exception: %s \n",argv[0], error.what());
-      return EXIT_FAILURE;
+    printf("%s: exception: %s \n",argv[0], error.what());
+    return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
 }

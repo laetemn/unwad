@@ -4,7 +4,10 @@
 echo cross-compiling unwad.exe for windows
 
 cd include/minizip
-./cross-compile.sh
+i586-mingw32msvc-gcc -c \
+ -DWIN32=1 \
+ -I./include -I.. \
+minizip.c miniunz.c zip.c unzip.c iowin32.c ioapi.c
 cd ../..
 
 i586-mingw32msvc-g++ -Wall  \
@@ -21,3 +24,4 @@ i586-mingw32msvc-strip unwad.exe
 
 cd include/minizip
 rm *.o
+cd ../..

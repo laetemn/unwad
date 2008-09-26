@@ -7,7 +7,6 @@
 #include <math.h>
 #include <iostream>
 #include <fstream>
-#include <ostream>
 #include <sstream> // string stream
 
 
@@ -1585,11 +1584,11 @@ int main(int argc,char **argv)
   Options options;
   try
   {
-      // Read command line parameters
       std::vector<std::string> files;
+      // Read command line parameters
       for (int i=1; i<argc; i++) 
       {
-        if (std::string("-?") == argv[i])
+        if (std::string("-?") == argv[i]) // show help
         {
           showHelp();
           return 0;
@@ -1660,6 +1659,7 @@ int main(int argc,char **argv)
       if (numFiles<1) 
       { 
         std::cerr << "You must specify at least one input wad.\n"; 
+        showHelp();
         return EXIT_FAILURE;
       }
       
