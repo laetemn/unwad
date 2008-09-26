@@ -59,14 +59,28 @@ unwad [options] <wad> [<wad2> ...]
                   -g N is interpreted as a replacement in the form of
                   s/((.{N}).*)/\2/\1 where N is a one-digit integer.
 
-  -w              Convert sounds to WAV format instead of FLAC.
-                  (not implemented)
+  -i <F>          Convert images to format F. F can be one of either 
+                  "png" or "raw" (without the quotes). Default image
+                  format is png.
+                  (planned feature, not implemented yet)
+                  
+  -n <F>          Convert sounds to format F. F can be one of either 
+                  "wav", "au", or "raw" (without the quotes). Default 
+                  sound format is wav.
+                  (planned feature, not implemented yet)
 
-Operations that deal with lump names occur in the same order as the
-options are listed. For example:
+  -m <F>          Convert music to format F. F can be one of either 
+                  "mid" or "raw" (without the quotes). Default music
+                  format is mid.
+                  (planned feature, not implemented yet)
 
-  * If you don't use the -u option (uppercase), any regex should look for
-    lower-case lump names.
+  --raw           Don't do any conversion (same as -i raw -n raw -m raw).
+                  Subsequent -i, -n, or -m arguments will override --raw
+                  for that lump type.
+                  (planned feature, not implemented yet)
+
+All regular expressions are case-insensitive. Operations that deal with 
+lump names occur in the same order as the options are listed.
 
   * If you use both -f and -r, -f should look for lump names as they
     would appear before being renamed by -r.
@@ -94,15 +108,20 @@ should all be escaped so the command line doesn't eat them.
 
 Example usage:
 
+  # extract all lumps from DOOM2.WAD
+  unwad DOOM2.WAD
+
+  # extract the PLAYPAL lump from DOOM2.WAD
+  unwad -f a/playpal DOOM2.WAD
+
   # extract all lumps from mypwad.wad, using palette file "playpal.lump"
   unwad -p playpal.lump mypwad.wad
 
   # extract all archvile sprites and noises from DOOM2.WAD
   unwad -t sn -f n/dsvi -f s/vile DOOM2.WAD
 
-  # export all rock and slime flats from DOOM2.WAD
-  # (notice you must escape the pipe character so the command line
-  # doesn't eat it!)
+  # export all rock and slime flats from DOOM2.WAD. Notice the escape 
+  # character (back slash) before '|'.
   unwad -t f -f f/rock\|slime DOOM2.WAD
 
   # extract all sprites and noises from HERETIC.WAD, renaming sprites
@@ -112,4 +131,4 @@ Example usage:
 
   # extract all lumps from DOOM2.WAD, leaving lump names in upper-case,
   # ignoring unknown lumps beginning with "DP" (pc speaker sounds)
-  unwad -u -f u/!^DP DOOM2.WAD
+  unwad -u -f u/!^dp DOOM2.WAD
