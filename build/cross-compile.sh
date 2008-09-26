@@ -20,10 +20,8 @@ export static="../lib/libmagic.dll.a ../lib/libpng.dll.a ../lib/libz.dll.a ../li
 
 cd src
   echo building unwad for windows
-  #cp ../dll/* .
   $bs $static -o unwad.exe
   i586-mingw32msvc-strip unwad.exe
-  #rm *.dll
 cd ..
 
 
