@@ -104,7 +104,7 @@ About renaming files:
 More than one renaming paramater may be used. All relevant matches will
 be applied. The / character may be used as a path seperator in the
 replacement string. Characters like '(', ')', and '\' (and probably more)
-should all be escaped so the command line doesn't eat them.
+should all be escaped.
 
 Example usage:
 
