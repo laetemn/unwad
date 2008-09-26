@@ -1,5 +1,5 @@
 #summary What would you like to be able to do with unwad? Comment here.
-#labels FeatureSuggestions
+#labels FeatureSuggestions,Featured
 
 = New suggestions =
 
