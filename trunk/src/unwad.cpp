@@ -1263,7 +1263,6 @@ public:
     
     for(unsigned i=0; i<head.lumpCount; i++)
     {
-      
       // read lump data
       if (lumps[i].info.size > 0)
       {
