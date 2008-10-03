@@ -10,8 +10,9 @@ cd ..
 ./filechars *.txt
 rm filechars
 
-cd src
-  ../build/linux-build.sh
+cd build
+  ./linux-build.sh
+  mv ../src/unwad .
 cd ..
 
 rm *.txt.h

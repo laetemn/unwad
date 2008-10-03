@@ -1,9 +1,20 @@
 // simple program to convert a text file to char*
 
+#include <cstdlib>
 #include <vector>
-#include <string>
+#include <string.h>
 #include <sstream>
 #include <fstream>
+
+/*
+
+#include <vector>
+#include <string.h>
+#include <sstream>
+#include <fstream>
+#include <cstdlib>
+
+*/
 
 using namespace std;
 
