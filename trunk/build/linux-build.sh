@@ -12,25 +12,33 @@ cd ../qmus2mid
   qmus2mid.cpp
 cd ../..
 
-export includes="-I../include/pngpp -I../include -I.."
 export mz_dir=../include/minizip
 export qm_dir=../include/qmus2mid
-export bs="g++ -Wall $includes unwad.cpp \
-$qm_dir/qmus2mid.o \
-$mz_dir/minizip.o $mz_dir/ioapi.o $mz_dir/zip.o $mz_dir/unzip.o"
+
+export includes="-I../include/pngpp -I../include -I.."
 export linked="-lmagic -lpng -lz"
 export static="/usr/lib/libmagic.a /usr/lib/libpng.a /usr/lib/libz.a"
+export stuff="$qm_dir/qmus2mid.o $mz_dir/minizip.o $mz_dir/ioapi.o $mz_dir/zip.o $mz_dir/unzip.o"
 
 cd src
+  #echo building unwad.o
+  #g++ -Wall $includes unwad.cpp -c
   echo building unwad
-  $bs $linked -o unwad
+  #g++ -Wall $includes unwad.cpp -c
+  g++ -Wall  unwad.cpp $includes $linked $stuff -o unwad
   strip unwad
   if echo "$BUILD_STATIC" | grep -q "1"; then
-      echo building unwad.static
-      $bs $static -o unwad.static
-      strip unwad.static
+    #g++ -Wall $includes unwad.cpp -c
+    g++ -Wall unwad.cpp $includes $static $stuff -o unwad.static
+    strip unwad.static
+  fi
+  if echo "$BUILD_OBJECT" | grep -q "1"; then
+    g++ -Wall -DUNWAD_OBJECT=1 $includes unwad.cpp -c
+    #g++ -Wall unwad.cpp $includes $static $stuff -o unwad.static
+    strip unwad.static
   fi
 cd ..
 
-rm include/minizip/*.o
-rm include/qmus2mid/*.o
+mv include/minizip/*.o ../obj
+mv include/qmus2mid/*.o ../obj
+mv src/*.o ../obj

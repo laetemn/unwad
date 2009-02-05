@@ -1,82 +1,65 @@
-/*
-    convert a lump to a png file
- */
- #include <stdio.h>
-#include <cstdlib>
-#include <map>
+#include <stdio.h>
 #include <math.h>
 #include <iostream>
 #include <fstream>
 #include <sstream> // string stream
 
+#ifndef MSW
+  #include <sys/stat.h>   // for mkdir
+#endif
 
-#include <png.hpp>  // make pngs
+#include <sys/types.h>
 
-#include <magic.h>  // magically guess file types ;p
+#include "png.hpp"  // make pngs
+#include "regex.h"
+#include "magic.h"  // magically guess file types ;p
+#include "minizip.h"
+#include "qmus2mid.h"
 
-#include <minizip.h>  // zip stuff
-
-
-
+#include "unwad.h"
 
 /****************************
                     ZIP
 *****************************/
 
-class Zip // wraps some bastardized code from zlib/contrib (aka minizip)
+std::map<std::string, bool> Zip::seenFiles;
+
+ std::string Zip::fixPath(std::string path)
 {
-  /*
-  // int mz_main(int argc, char *argv[])
-  
-  printf("Usage : minizip [-o] [-a] [-0 to -9] [-p password] file.zip [files_to_add]\n\n" \
-       "  -o  Overwrite existing file.zip\n" \
-       "  -a  Append to existing file.zip\n" \
-       "  -0  Store only\n" \
-       "  -1  Compress faster\n" \
-       "  -9  Compress better\n\n");
-  */
-  
-private:
-  
-  static std::map<std::string, bool> seenFiles;
-  
-  static std::string fixPath(std::string path)
-  {
 #ifdef MSW
-    for (unsigned i = 0; i<path.length(); i++)
-    {
-      if (path[i] == '/') path[i] = '\\';
-    }
-    // printf("\n newpath: %s\n", path.c_str());
-#endif
-    return path;
+  for (unsigned i = 0; i<path.length(); i++)
+  {
+    if (path[i] == '/') path[i] = '\\';
   }
-  
-public:
-  
+  // printf("\n newpath: %s\n", path.c_str());
+#endif
+  return path;
+}
 
-  static bool packFiles(std::vector<std::string> files, std::string zippath, unsigned stripChars=0)
-  {
-    std::stringstream strip("");
-    strip << ">" << stripChars;
-    files.insert(files.begin(),fixPath(zippath));
-    files.insert(files.begin(),strip.str());
-    files.insert(files.begin(),"-o");
-    files.insert(files.begin(),"minizip");
-    
-    unsigned argc = files.size();
-    
-    const char *args[argc];
-    
-    for (unsigned i = 0; i < argc; i++) args[i] = files[i].c_str();
-    
-    bool result = !mz_main(argc, (char **)args);
-    return result;
-  };
 
-   // this works fine on linux, but guess what...
-  static bool packFile(std::string filepath, std::string zippath, unsigned stripChars=0, bool overwrite=false)
-  {
+
+ bool Zip::packFiles(std::vector<std::string> files, std::string zippath, unsigned stripChars)
+{
+  std::stringstream strip("");
+  strip << ">" << stripChars;
+  files.insert(files.begin(),fixPath(zippath));
+  files.insert(files.begin(),strip.str());
+  files.insert(files.begin(),"-o");
+  files.insert(files.begin(),"minizip");
+  
+  unsigned argc = files.size();
+  
+  const char *args[argc];
+  
+  for (unsigned i = 0; i < argc; i++) args[i] = files[i].c_str();
+  
+  bool result = !mz_main(argc, (char **)args);
+  return result;
+};
+
+ // this works fine on linux, but guess what...
+ bool Zip::packFile(std::string filepath, std::string zippath, unsigned stripChars, bool overwrite)
+{
     std::stringstream strip("");
     strip << ">" << stripChars;
     const char *ow = (overwrite || seenFiles.find(zippath) == seenFiles.end() ? "-o" : "-a");
@@ -89,21 +72,13 @@ public:
     return !mz_main(argcount, (char **)args);
   };
   
-};
-std::map<std::string, bool> Zip::seenFiles;
+
 
 /****************************
             FILESYSTEM
 *****************************/
-#ifndef MSW
-  #include <sys/stat.h>   // for mkdir
-#endif
-
-class Filesystem
-{
-private:
   
-  static bool makeDir(std::string path)
+   bool Filesystem::makeDir(std::string path)
   {
     // if (system(("mkdir " + path).c_str()))
 #ifdef MSW
@@ -115,9 +90,9 @@ private:
     return false;
   }
   
-public:
   
-  static bool exists(std::string path)
+  
+   bool Filesystem::exists(std::string path)
   {
     std::fstream f;
     f.open(path.c_str(), std::ios::in);
@@ -130,7 +105,7 @@ public:
     return false;
   }
   
-  static void create_directories(std::string path)
+   void Filesystem::create_directories(std::string path)
   {
     std::stringstream ss("");
     const char *p = path.c_str();
@@ -144,24 +119,15 @@ public:
     if (!exists(s))makeDir(s);
   }
 
-};
+
 
 
 /****************************
                 REGEX
 *****************************/
 
-#include <sys/types.h>
-#include <regex.h>
-
-class Regex
-{
-private:
-  
-public:
-  
   // determine if regex matches some text
-  static bool match(const char *regex, const char *text)
+   bool Regex::match(const char *regex, const char *text)
   {
     regex_t compiledRegex;
     int cflags = REG_EXTENDED | REG_ICASE | REG_NOSUB;
@@ -179,11 +145,13 @@ public:
     
     return !result;
   };
-  static bool match(std::string regex, std::string text)
-  { return match(regex.c_str(), text.c_str()); };
+   bool Regex::match(std::string regex, std::string text)
+  { 
+    return match(regex.c_str(), text.c_str()); 
+  };
   
   // if regex matches, replace text with other text
-  static std::string replace(const char *regex, const char *text, const char *replacement)
+   std::string Regex::replace(const char *regex, const char *text, const char *replacement)
   {
     regex_t compiledRegex;
     int cflags = REG_EXTENDED | REG_ICASE;
@@ -221,85 +189,26 @@ public:
     
   };
   
-  static std::string replace(std::string regex, std::string text, std::string replacement)
+   std::string Regex::replace(std::string regex, std::string text, std::string replacement)
   {
     return replace(regex.c_str(), text.c_str(), replacement.c_str());
   };
-};
+
 
 /****************************
                 LUMP
 *****************************/
 
-class Patch
-{
-public:
-  struct PatchHead
-  {
-    short	width;
-    short	height;
-    short	left;
-    short	top;
-  };
   
-};
+// static member initialzers for Lump class
+std::map<std::string, Lump::LumpType> Lump::lumpTypesByName;
+std::map<Lump::LumpType, std::string> Lump::typeNames;
+std::map<std::string, std::string> Lump::namedLumps;
+bool Lump::staticStuffInitted = false;
 
-class Lump 
-{
-private:
-
-  short looksLikeAPatch;  // -1 = not sure, 0 = no, 1 = yes 
-
-public:
-  
-  // data from wad directory
-  struct DirectoryEntry
-  {
-    long offset;
-    long size;
-    char name[8];
-    
-    DirectoryEntry()
-    {
-      for(unsigned i=0; i<8; i++) name[i] = 0;
-    }
-  };
-  
-  // types of lumps
-  enum LumpType
-  {
-    UNKNOWN = 'u',NAMED = 'k',  // named: self-named lump, like playpal or endoom
-    MAP = 'l',  ACS = 'o', TEXTURE = 't', GFX = 'g', SPRITE = 's', 
-    PATCH = 'p', FLAT = 'f', SOUND = 'n', MUSIC = 'm', 
-    MARKER=-1, COLORMAP=-2
-  };
-  
-  // known lump formats
-  enum LumpFormat
-  {
-    GENERIC = 0, BINARY, TEXT,
-    DOOMPIC,   // playpal doom patch
-    DOOMPICT, //titlepal doom patch
-    DOOMFLAT, DOOMSND, DOOMMUS
-  };
-  
-  //properties
-  
-  DirectoryEntry info;  // lump info from wad directory
-  std::vector<char> data; // this will hold a copy of the lump's data
-  LumpType type;  // type of lump
-  LumpFormat format;  // format of lump
-  std::string formatDescription;  // description of lump format 
-  std::string fileExtension;  // file extension to add
-  std::string map; // the map (level) this lump is associated with, if any
-  
-  static std::map<std::string, Lump::LumpType> lumpTypesByName;
-  static std::map<Lump::LumpType, std::string> typeNames;
-  static std::map<std::string, std::string> namedLumps;
-  static bool staticStuffInitted;
   
   // constructor
-  Lump()
+  Lump::Lump()
   {
     formatDescription = "";  // description of lump format 
     fileExtension = "";  // file extension to add
@@ -318,7 +227,7 @@ public:
       typeNames[Lump::NAMED] = "Named lump";
       typeNames[Lump::MAP] = "Map data";
       typeNames[Lump::ACS] = "Action Code Script";
-      typeNames[Lump::TEXTURE] = "Texture definitions";
+      typeNames[Lump::TEXTURE] = "Texture";
       typeNames[Lump::GFX] = "Image";
       typeNames[Lump::SPRITE] = "Sprite";
       typeNames[Lump::PATCH] = "Patch";
@@ -407,7 +316,7 @@ public:
   
   // return name of lump as string
   // std::string getName(){return std::string(info.name,0,8); };
-  std::string getName(bool lower=false)
+  std::string Lump::getName(bool lower)
   {
     std::string name(info.name,0,8);
     // make the name lower case and fix backslash in vile for windblows
@@ -420,7 +329,7 @@ public:
   };
   
   // is it a flat?
-  bool isFlat()
+  bool Lump::isFlat()
   {
     if( (info.size==0x1000)||(info.size==0x2000)||(info.size==0x4000)
         ||(info.size==0x8000)||(info.size==0x1040) )
@@ -435,7 +344,7 @@ public:
   }
   
   // is it a patch?
-  bool isPatch()
+  bool Lump::isPatch()
   {
     // if we already decided whether it was a patch, skip the checks
     if (looksLikeAPatch != -1) return looksLikeAPatch;
@@ -483,16 +392,23 @@ public:
   };
   
   // guess type of lump; set the type
-  void guessType()
+  void Lump::guessType()
   {
+      
     std::string lumpName = getName();
-    
+      
     if (lumpTypesByName.count(lumpName) > 0)
     {
       type = lumpTypesByName[lumpName];
       return;
     }
-    
+      
+    if (info.size == 0)
+    {
+      type = MARKER;
+      return;
+    }
+      
     // Doom MUS?
     if (info.size > 16 && data[0] == 'M' && data[1] == 'U' && data[2] == 'S' 
         && data[3] == 0x1A)
@@ -502,7 +418,7 @@ public:
       formatDescription = "Doom MUS music lump";
       return;
     }
-    
+      
     // Doom Sound?
     if ( (int)data[0] == 3 && (int)data[6] == 0 && (int)data[4] <= info.size - 8)
     {
@@ -532,26 +448,20 @@ public:
   };
   
   // write patch data to disk.
-  bool write(std::string filename)
+  bool Lump::write(std::string filename)
   {
     std::ofstream outfile(filename.c_str(),std::ios::binary|std::ios::out);
 		return outfile.write((char *)&data.front(), data.size());
   };
   
   // append data to file.
-  bool append(std::string filename)
+  bool Lump::append(std::string filename)
   {
     std::ofstream outfile(filename.c_str(),std::ios::binary|std::ios::out|std::ios::app);
 		return outfile.write((char *)&data.front(), data.size());
   };
   
-};
 
-// static member initialzers for Lump class
-std::map<std::string, Lump::LumpType> Lump::lumpTypesByName;
-std::map<Lump::LumpType, std::string> Lump::typeNames;
-std::map<std::string, std::string> Lump::namedLumps;
-bool Lump::staticStuffInitted = false;
 
 
 
@@ -560,25 +470,8 @@ bool Lump::staticStuffInitted = false;
            OPTIONS
 *****************************/
 
-class Options
-{
-public :
-    
-  unsigned char *palette;
-  unsigned char palData[256*3];
-  std::string palFile; // file to get palette from
-  std::string types;  // string of characters  representing types of lump to extract (or types to skip if first char is '!')
-  std::string outPath;  // path to save wad to
-  std::vector<std::string > filters; // lump filter strings like: [!]types/[!]regex
-  std::vector<std::string > substitutions; // lump rename strings like: [!]types/[!]regex/replacement
-  bool list; // only list lumps, don't extract
-  bool internalPalette; // use internal playpal lump
-  bool upper; // upper-case lump names
-  bool append;  // append text lumps
-  bool pk3;
-  int groupSprites;
   
-  Options() // constructor
+  Options::Options() // constructor
   {
     palFile = "";
     types = "";
@@ -593,7 +486,7 @@ public :
   }
   
   // should lump be saved?
-  bool shouldSaveLump(Lump *lump)
+  bool Options::shouldSaveLump(Lump *lump)
   {
     
     // check list mode
@@ -666,7 +559,7 @@ check_filter:;
   };
   
   
-  std::string substitute(std::string substitution, std::string target)
+  std::string Options::substitute(std::string substitution, std::string target)
   {
       const char *sub = substitution.c_str() + substitution.find('/') + 1;
 
@@ -679,7 +572,7 @@ check_filter:;
     
   };
   
-  std::string getLumpSaveName(Lump *lump)
+  std::string Options::getLumpSaveName(Lump *lump)
   {
     std::string result = lump->getName(!upper);
     
@@ -716,18 +609,14 @@ check_filter:;
     return result;
   };
   
-};
+
 
 
 /****************************
           FormatGuesser
 *****************************/
 
-class FormatGuesser 
-{
-public:
-  
-  static std::string getDataFormat( const void * buffer, size_t length)
+   std::string FormatGuesser::getDataFormat( const void * buffer, size_t length)
   {  
     std::string result = "";
     magic_t magicCookie = magic_open(MAGIC_NO_CHECK_TOKENS);  // MAGIC_NONE, MAGIC_MIME, MAGIC_NO_CHECK_TOKENS
@@ -737,43 +626,45 @@ public:
     magic_close(magicCookie);
     return result;
   }
-  static std::string getDataFormat( Lump *lump)
+   std::string FormatGuesser::getDataFormat( Lump *lump)
   {  
     return getDataFormat( (const void *)&lump->data.front(), lump->data.size()  );
   }
   
-  static std::string getExtension( const void * buffer, size_t length)
+   std::string FormatGuesser::getExtension( const void * buffer, size_t length)
   {  
     std::string mimeType = "";
     std::string extension = ".lump";
-    magic_t magicCookie = magic_open(MAGIC_NO_CHECK_TOKENS + MAGIC_MIME);
-    magic_load( magicCookie,  "magic/magic" );
+    magic_t magicCookie = magic_open(MAGIC_NO_CHECK_TOKENS);
+    magic_load( magicCookie,  "magic/magic.mime" );
     
-    //magic_compile( magicCookie,  "magic/magic" );
+    // magic_compile( magicCookie,  "magic/magic" );
     
     mimeType = std::string("") + (char *)magic_buffer( magicCookie, buffer, length );
     
-    // printf("mime type: %s \n",mimeType);
+    // printf("mime type: %s \n",mimeType.c_str());
     
     unsigned len = mimeType.length();
     magic_close(magicCookie);
     
-    if (!mimeType.find("text")) extension = ".txt";
+    if (mimeType.find("text") != std::string::npos) 
+      extension = ".txt";
     else if (mimeType.find("x-") != std::string::npos)
       extension = "." + mimeType.substr ( mimeType.find_last_of("x-")+1, len ) ;
     else if (!mimeType.find('/') != std::string::npos)
       extension = "." + mimeType.substr ( mimeType.find_last_of('/')+1, len ) ;
     
     if (extension == ".octet-stream") extension = ".lump";
+    if (extension == ".data") extension = ".lump";
     
     // printf("extension: %s \n",extension);
     return extension;
   }
-  static std::string getExtension( Lump *lump)
+   std::string FormatGuesser::getExtension( Lump *lump)
   {  
     return getExtension( (const void *)&lump->data.front(), lump->data.size()  );
   }
-};
+
 
 
 
@@ -781,10 +672,7 @@ public:
           FlatToPng
 *****************************/
 
-class FlatToPng 
-{
-public:
-  static bool write ( Lump *lump, unsigned char *palette, std::string pngpath )
+   bool FlatToPng::write ( Lump *lump, unsigned char *palette, std::string pngpath )
   {
     int side = (int)sqrt(lump->info.size);
     png::image< png::rgb_pixel > image(side, side);
@@ -803,29 +691,18 @@ public:
     image.write(pngpath);
     return true;
   }
-};
+
 
 
 /****************************
           PatchToPng
 *****************************/
 
-class PatchToPng 
-{
-public:
+int PatchToPng::crc_table_computed = 0;
+unsigned long PatchToPng::crc_table[256];
   
-
-  // CRC stuff for PNG.
-  // This can probably be done by zlib?
-
-  /* Table of CRCs of all 8-bit messages. */
-  static unsigned long crc_table[256];
-
-  /* Flag: has the table been computed? Initially false. */
-  static int crc_table_computed; // = 0;
-
   /* Make the table for a fast CRC. */
-  static void make_crc_table(void)
+   void PatchToPng::make_crc_table(void)
   {
     unsigned long c;
     int n, k;
@@ -851,7 +728,7 @@ public:
   should be initialized to all 1's, and the transmitted value
   is the 1's complement of the final running CRC (see the
   crc() routine below)). */
-  static unsigned long update_crc(unsigned long crc, unsigned char *buf, int len)
+   unsigned long PatchToPng::update_crc(unsigned long crc, unsigned char *buf, int len)
   {
     unsigned long c = crc;
     int n;
@@ -866,27 +743,27 @@ public:
   }
 
   /* Return the CRC of the bytes buf[0..len-1]. */
-  static unsigned long crc(unsigned char *buf, int len)
+   unsigned long PatchToPng::crc(unsigned char *buf, int len)
   {
     return update_crc(0xffffffffL, buf, len) ^ 0xffffffffL;
   }
 
   // swap bytes for big endian format
 
-  static inline unsigned long byteSwapULong(unsigned long nLongNumber)
+   inline unsigned long PatchToPng::byteSwapULong(unsigned long nLongNumber)
   {
      return (((nLongNumber&0x000000FF)<<24)+((nLongNumber&0x0000FF00)<<8)+
      ((nLongNumber&0x00FF0000)>>8)+((nLongNumber&0xFF000000)>>24));
   }
   
-  static inline unsigned long byteSwapLong(long value)
+   inline unsigned long PatchToPng::byteSwapLong(long value)
   {
     return (long)byteSwapULong((unsigned long)value) ;
   }
 
   // write a png file given a lump and palette data
 
-  static bool write ( Lump *lump, unsigned char *palette, std::string pngpath)
+   bool PatchToPng::write ( Lump *lump, unsigned char *palette, std::string pngpath)
   {
 		// Get header & offsets
 		Patch::PatchHead *header = (Patch::PatchHead *)&lump->data.front();
@@ -982,10 +859,8 @@ public:
 		return true;
 	}
   
-};
 
-int PatchToPng::crc_table_computed = 0;
-unsigned long PatchToPng::crc_table[256];
+
 
 
 
@@ -993,74 +868,7 @@ unsigned long PatchToPng::crc_table[256];
     DOOM SOUND EXPORT
 *****************************/
 
-class DoomSndExport
-{
-public:
-  
-  struct DoomSoundHead
-  {
-    unsigned short three;
-    unsigned short samplerate;
-    unsigned short samples;
-    unsigned short zero;
-  };
-
-  struct AuSoundHead
-  {
-    unsigned long magic;
-    unsigned long offset;
-    unsigned long size;
-    unsigned long encoding;
-    unsigned long rate;
-    unsigned long channels;
-    
-    // copy constructor
-    AuSoundHead()
-    {
-      magic = PatchToPng::byteSwapULong (0x2e736e64); // ".snd"
-      offset = PatchToPng::byteSwapULong (24); // length of header
-      size = 0xffffffff; // unknown size
-      encoding = PatchToPng::byteSwapULong (2); // 8-bit linear PCM
-      channels = PatchToPng::byteSwapULong (1);
-    }
-    
-  };
-
-  struct WavSoundHead
-  {
-    char riff[4];
-    unsigned size;
-    char wave[4];
-    char fmt[4];
-    unsigned x10;
-    unsigned short x01;
-    unsigned short channels;
-    unsigned rate;
-    unsigned bytesPerSecond;
-    unsigned short bytesPerSample;
-    unsigned short bitsPerSample;
-    char data[4];
-    unsigned length;
-    
-    // copy constructor
-    WavSoundHead()
-    {
-      riff[0] = 'R'; riff[1] = 'I'; riff[2] = 'F'; riff[3] = 'F' ;
-      wave[0] = 'W'; wave[1] = 'A'; wave[2] = 'V'; wave[3] = 'E' ;
-      fmt[0] = 'f'; fmt[1] = 'm'; fmt[2] = 't'; fmt[3] = ' ' ;
-      x10 = 0x10; // length of format chunk
-      x01 = 0x01;
-      channels = 1;
-      bytesPerSample = 1; // 8 bit mono
-      bitsPerSample = 8; // 8 bit mono
-      data[0] = 'd'; data[1] = 'a'; data[2] = 't'; data[3] = 'a' ;
-    }
-    
-  };
-
-private:
-  
-  static bool writeAu(Lump *lump, std::string filename)
+   bool DoomSndExport::writeAu(Lump *lump, std::string filename)
   {
     
     char *data = (char *)&lump->data.front();
@@ -1093,7 +901,7 @@ private:
     return true;
   };
   
-  static bool writeWav(Lump *lump, std::string filename)
+   bool DoomSndExport::writeWav(Lump *lump, std::string filename)
   {
     
     char *data = (char *)&lump->data.front();
@@ -1120,14 +928,7 @@ private:
     return true;
   };
   
-public:
-  
-  enum SoundFormat
-  {
-    AU = 0, WAV
-  };
-
-  static bool write(Lump *lump, std::string filename, SoundFormat format)
+   bool DoomSndExport::write(Lump *lump, std::string filename, SoundFormat format)
   {
     if (format == AU)
       return writeAu(lump, filename);
@@ -1136,19 +937,13 @@ public:
     return false;
   };
     
-};
+
 
 /****************************
     DOOM MUSIC TO MIDI
 *****************************/
 
-#include "qmus2mid.h"
-
-class DoomMusToMidi 
-{
-public:
-  
-  static bool write(Lump *lump, std::string filename)
+   bool DoomMusToMidi::write(Lump *lump, std::string filename)
   {
     std::string outfn = filename + ".mid";
     lump->write(filename);
@@ -1159,21 +954,14 @@ public:
     return result;
   }  
     
-};
+
 
 
 /****************************
                 WAD
 *****************************/
 
-class Wad 
-{
-  
-private:
-  
-  std::map<std::string, Lump::LumpType> lumpTypesByName;
-
-  void setLumpTypeFromName(Lump *lump)
+  void Wad::setLumpTypeFromName(Lump *lump)
   {
     std::string lumpName = lump->getName();
     if (lumpTypesByName.count(lumpName) > 0)
@@ -1182,7 +970,7 @@ private:
     }
   }
   
-  void preparePath(std::string pathOrFile)
+  void Wad::preparePath(std::string pathOrFile)
   {
     std::string path("");
     unsigned lastSlash =  pathOrFile.find_last_of('/');
@@ -1191,38 +979,19 @@ private:
     if (path.length() > 0) Filesystem::create_directories(path);
   }
   
-public:
   
-  struct WadHead 
-  {
-    char magic[4]; 
-    unsigned long lumpCount; 
-    unsigned long directoryOffset;
-    
-    WadHead() // copy constructor
-    {
-      magic[0]='P';magic[1]='W';magic[2]='A';magic[3]='D';
-    };
-    
-    std::string getMagic(){return std::string(magic,0,4); };
-    
-  };
-  
-  WadHead head;
-  std::vector<Lump> lumps;
-  
-  Wad() // default constructor
+  Wad::Wad() // default constructor
   {
   };
   
   // put a file into a pk3
-  void packFile(std::string path, std::string pk3path, unsigned strip=0, bool overwrite = false)
+  void Wad::packFile(std::string path, std::string pk3path, unsigned strip, bool overwrite)
   {
     Zip::packFile(path, pk3path, strip, overwrite);
   }
   
   
-  void loadFile(std::string path, Options *options )
+  void Wad::loadFile(std::string path, Options *options )
  {
    
     std::string outpath = (options->outPath.length() > 0 ? options->outPath + "/" : path + ".files/");
@@ -1263,6 +1032,7 @@ public:
     
     for(unsigned i=0; i<head.lumpCount; i++)
     {
+    
       // read lump data
       if (lumps[i].info.size > 0)
       {
@@ -1354,7 +1124,9 @@ public:
         else if (lastMarkerName == "P_START"|| lastMarkerName == "PP_START") 
           inMarkers = Lump::PATCH;
         else if (lastMarkerName == "P_END"|| lastMarkerName == "PP_END") 
-          inMarkers = Lump::UNKNOWN;
+          inMarkers = Lump::UNKNOWN; 
+        else if (lastMarkerName == "TX_START") inMarkers = Lump::TEXTURE;
+        else if (lastMarkerName == "TX_END") inMarkers = Lump::UNKNOWN;
         else if (lastMarkerName == "A_START") inMarkers = Lump::ACS;
         else if (lastMarkerName == "A_END") inMarkers = Lump::UNKNOWN;
         else if (lastMarkerName == "F_START" || lastMarkerName == "FF_START")
@@ -1369,6 +1141,7 @@ public:
       }
       
       lumps[i].fileExtension = FormatGuesser::getExtension( &lumps[i]  );
+      
       
       // handle acs data
       if (lumps[i].type == Lump::ACS && options->shouldSaveLump(&lumps[i])) 
@@ -1420,6 +1193,8 @@ public:
       
       if (options->shouldSaveLump(&lumps[i]) == false) goto done;
       
+      //TODO: this section really needs to be cleaned up somehow =/
+      
       if (lumps[i].type == Lump::SPRITE)
       {
         if (lumps[i].format == Lump::DOOMPIC) 
@@ -1444,6 +1219,20 @@ public:
         else
         {
           outfile = outpath + "patches/" + options->getLumpSaveName(&lumps[i]) + lumps[i].fileExtension;
+          preparePath(outfile); lumps[i].write(outfile);
+        }
+        goto done;
+      }
+      if (lumps[i].type == Lump::TEXTURE)
+      {
+        if (lumps[i].format == Lump::DOOMPIC) 
+        {
+          outfile = outpath + "textures/" + options->getLumpSaveName(&lumps[i]) + ".png";
+          preparePath(outfile); PatchToPng::write(&lumps[i], options->palData, outfile);
+        }
+        else
+        {
+          outfile = outpath + "textures/" + options->getLumpSaveName(&lumps[i]) + lumps[i].fileExtension;
           preparePath(outfile); lumps[i].write(outfile);
         }
         goto done;
@@ -1542,7 +1331,10 @@ public:
       float kbsize = lumps[i].info.size/1024.0;
       unsigned digits = 1;
       for(unsigned d=1; d<=(unsigned)kbsize; d*=10) digits++;
-      printf("%s; size: %fKB \n\n",lumps[i].formatDescription.c_str(), kbsize);
+      printf("%s; size: %fKB \n",lumps[i].formatDescription.c_str(), kbsize);
+      
+      //printf ("extension: %s", lumps[i].fileExtension.c_str() );
+      printf("\n\n");
       
       lumps[i].data.clear();
       
@@ -1564,20 +1356,21 @@ public:
  };
   
  
-};
+
 
 
 /****************************
                 MAIN
 *****************************/
-
+ 
 void showHelp()
 {
   #include "readme.txt.h"
   printf("\n%s\n", readme_txt);
 }
 
-int main(int argc,char **argv) 
+
+int unwad_main(int argc,char **argv) 
 {
   
   Options options;
@@ -1681,3 +1474,8 @@ int main(int argc,char **argv)
       return EXIT_FAILURE;
   }
 }
+
+#ifndef UNWAD_OBJECT
+int main(int argc,char **argv) { return unwad_main(argc, argv); }
+#endif
+
