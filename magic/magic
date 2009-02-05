@@ -8614,7 +8614,7 @@
 # URL:	http://www.mathsoft.com/
 # From:	Josh Triplett <josh@freedesktop.org>
 
-0	string	.MCAD\		Mathcad document
+#0	string	.MCAD\		Mathcad document
 
 #------------------------------------------------------------------------------
 # mathematica:  file(1) magic for mathematica files

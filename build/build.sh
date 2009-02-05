@@ -11,6 +11,7 @@ cd ..
 rm filechars
 
 export BUILD_STATIC=1
+export BUILD_OBJECT=1
 
 cd src
   ../build/linux-build.sh
@@ -30,7 +31,7 @@ cp  magic/* $l/magic; cp  magic/* $w/magic
 cp *.txt $l; cp *.txt $w
 mv src/unwad.static $l/unwad
 mv src/unwad.exe $w; cp dll/*.dll $w
-mv src/unwad build
+mv src/unwad .
 
 cd ./release/l/
 rm ../linux/unwad.tar.gz
