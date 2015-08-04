@@ -1,3 +1,5 @@
+Convert doom wads to pk3; extract lumps and convert them to common formats. 
+
 Usage:
 
 unwad [options] <wad> [<wad2> ...]
